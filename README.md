@@ -2,204 +2,63 @@
 
 ## Overview
 
-The increasing use of solar and wind energy introduces uncertainty into electricity generation. Wind speed varies continuously, solar generation depends on time of day and weather, and consumer demand follows daily, weekly, and seasonal patterns.
+Solar and wind power are intermittent, while electricity demand varies over time. This uncertainty can create periods where renewable generation is insufficient to meet demand, resulting in a **loss of load**.
 
-When renewable generation is insufficient to meet demand, the grid may experience a **loss of load**. Battery storage can reduce this risk by storing excess generation and supplying energy during periods of deficit.
+This project develops a probabilistic model of a renewable-energy grid with battery storage to investigate whether storage can reduce the probability of such events.
 
-This project develops a probabilistic reference model for a renewable-energy system with battery storage and investigates how these uncertainties combine to affect grid reliability.
+The central reliability measure is the **Loss-of-Load Probability (LOLP)**:
 
----
+$$P_t=P(G_t+B_t\leq D_t)$$
+
+where:
+
+* $G_t$ = renewable generation at time $t$
+* $B_t$ = power supplied by the battery
+* $D_t$ = electricity demand
 
 ## Main Research Question
 
-> **To what extent can battery storage reduce the probability of loss of load in a grid with stochastic renewable generation and consumer demand?**
+> **To what extent can battery storage reduce the probability of loss of load in a grid with stochastic solar, wind, and consumer demand?**
 
 ### Supporting Questions
 
-1. How can wind, solar generation, and consumer demand be represented using appropriate probabilistic models?
-2. How do battery capacity and state-of-charge affect the probability of a supply deficit?
+1. How should solar generation, wind generation, and demand be probabilistically modelled?
+2. How does battery capacity and state-of-charge affect the Loss-of-Load Probability?
 3. Does load-shifting reduce peak demand and improve grid reliability?
 
----
+## Methodology
 
-## Reference Model
+The model will be developed in the following stages:
 
-The system is represented through the hourly **energy balance**:
+1. **Define the probability space**
+   
+   Model hourly realizations of renewable generation and consumer demand.
 
-$$
-E_t = G_t + B_t - D_t
-$$
+3. **Model renewable uncertainty**
 
-where:
+   Wind speed:
 
-* $E_t$ = net energy balance at time $t$
-* $G_t$ = renewable generation
-* $B_t$ = usable battery power supplied
-* $D_t$ = consumer demand
+   $$W_t\sim Weibull(k,\lambda)$$
 
-A deficit occurs when:
+   Solar irradiance:
 
-$$
-E_t < 0
-$$
+   $$S_t\sim Beta(\alpha,\beta)$$
 
-Therefore, the **Loss-of-Load Probability (LOLP)** is:
+4. **Model renewable generation**
 
-$$
-LOLP = P(E_t < 0)
-$$
+   Convert wind speed and solar irradiance into hourly wind and solar power output:
 
----
+   $$G_t=W_t + S_t$$
 
-## Probabilistic Model
+5. **Model battery storage**
 
-### 1. Wind Generation
+   Represent battery state-of-charge as a stochastic process / discrete Markov chain:
 
-Wind speed is modelled as a continuous random variable:
+   $$B_{t+1}=f(B_t,G_t,D_t)$$
 
-$$
-W_t \sim Weibull(k,\lambda)
-$$
+6. **Evaluate reliability**
 
-with probability density function:
-
-$$
-f_W(w)=
-\frac{k}{\lambda}
-\left(\frac{w}{\lambda}\right)^{k-1}
-e^{-(w/\lambda)^k}
-$$
-
-Wind speed is then converted into electrical power through a wind-turbine power function:
-
-$$
-P_t^{wind}=f_W(W_t)
-$$
-
-The function accounts for the turbine's cut-in, rated, and cut-out wind speeds.
-
----
-
-### 2. Solar Generation
-
-Solar irradiance is modelled using a Beta distribution after normalization:
-
-$$
-S_t \sim Beta(\alpha,\beta)
-$$
-
-where:
-
-$$
-0\leq S_t\leq1
-$$
-
-Solar generation is then obtained through a photovoltaic conversion function:
-
-$$
-P_t^{solar}=f_S(S_t,t)
-$$
-
-During nighttime:
-
-$$
-P_t^{solar}=0
-$$
-
-The solar model may also account for differences in irradiance across hours and seasons.
-
----
-
-### 3. Total Renewable Generation
-
-Wind and solar power are combined to obtain total renewable generation:
-
-$$
-\boxed{
-G_t=P_t^{wind}+P_t^{solar}
-}
-$$
-
-This distinction is important because wind speed and solar irradiance are **resource variables**, not directly comparable measures of electrical generation.
-
----
-
-### 4. Consumer Demand
-
-Consumer demand is modelled as a random variable:
-
-$$
-D_t\sim F_D
-$$
-
-The choice of $F_D$ will be determined from existing research and observed characteristics of electricity consumption.
-
-The model will consider temporal patterns such as:
-
-* time of day
-* weekday vs. weekend
-* seasonal variation
-
-A reference demand model will then be selected and justified.
-
----
-
-### 5. Battery Storage
-
-Battery storage is represented through its **state of charge (SOC)**.
-
-The stored energy is:
-
-$$
-SOC_t\in[0, C]
-$$
-
-where $C$ is the battery capacity.
-
-The battery evolves according to its previous state:
-
-$$
-\frac{P_t^{dis}\Delta t}{\eta_d}
-$$
-
-where:
-
-* $P_t^{ch}$ = charging power
-* $P_t^{dis}$ = discharging power
-* $\eta_c$ = charging efficiency
-* $\eta_d$ = discharging efficiency
-
-The battery can be represented as a discrete **Markov chain**, where the probability of the next state depends on the current state:
-
-$$
-P(SOC_{t+1}=j\mid SOC_t=i)
-$$
-
-The stored energy $SOC_t$ is distinguished from the usable battery output $B_t$:
-
-$$
-B_t=P_t^{dis}
-$$
-
-subject to battery capacity and charge/discharge constraints.
-
----
-
-## Energy Balance and Loss of Load
-
-Combining the components gives:
-
-$$D_t$$ 
-
-or:
-
-$$
-\boxed{
-E_t = D_t + B_t - D_t
-}
-$$
-
-Define an indicator variable:
+   Determine whether each hour experiences a loss of load:
 
 $$
 I_t=
@@ -209,196 +68,37 @@ I_t=
 \end{cases}
 $$
 
-Then:
 
-$$
-P(I_t=1)=P(E_t<0)
-$$
+   and estimate:
 
-and the empirical Loss-of-Load Probability can be estimated as:
+   $$\bar{L_T}=\frac{1}{T}\sum_{t=1}^{T}I_t$$
 
-$$
-\frac{1}{T}
-\sum_{t=1}^{T}I_t
-$$
+8. **Apply probability and statistical methods**
 
-The size of the energy deficit can also be measured as:
+   * Central Limit Theorem (CLT)
+   * Chebyshev's Inequality
+   * Hypothesis testing
+   * Markov chains
 
-$$
-Deficit_t=\max(0,-E_t)
-$$
+9. **Compare scenarios**
 
----
-
-## Distribution of the Energy Balance
-
-The final random variable is:
-
-$$
-E_t=G_t+B_t-D_t
-$$
-
-which depends on the underlying stochastic variables:
-
-$$
-W_t,\quad S_t,\quad D_t,\quad SOC_t
-$$
-
-Because these variables may follow different distributions and may not be independent, $E_t$ is not assumed to follow a standard named probability distribution.
-
-The distribution of $E_t$ will instead be investigated through the chosen component models and simulation.
-
-The main quantity of interest is:
-
-$$
-\boxed{
-P(E_t<0)
-}
-$$
-
----
-
-## Statistical Analysis
-
-The model will use the following probability and statistical methods:
-
-### Central Limit Theorem
-
-Used to investigate the behaviour of aggregate renewable generation:
-
-$$
-\bar{G}_n
-\overset{d}{\longrightarrow}
-N\left(
-\mu_G,
-\frac{\sigma_G^2}{n}
-\right)
-$$
-
-### Chebyshev's Inequality
-
-Used to establish probability bounds:
-
-$$
-P(|X-\mu|\geq k\sigma)
-\leq
-\frac{1}{k^2}
-$$
-
-### Hypothesis Testing
-
-Used to evaluate whether load-shifting significantly reduces peak demand:
-
-$$
-H_0:\mu_{peak,shifted}=\mu_{peak,original}
-$$
-
-$$
-H_1:\mu_{peak,shifted}<\mu_{peak,original}
-$$
-
-### Markov Chains
-
-Used to model transitions between battery state-of-charge levels:
-
-$$
-P(SOC_{t+1}\mid SOC_t)
-$$
-
----
-
-## Scenario Analysis
-
-The reference model will be used to compare different battery and demand-management scenarios.
-
-| Scenario                | Battery Capacity | Load Shifting | Expected Output |
-| ----------------------- | ---------------: | ------------- | --------------- |
-| Baseline                |             None | No            | Reference LOLP  |
-| Small Storage           |              Low | No            | LOLP            |
-| Medium Storage          |           Medium | No            | LOLP            |
-| Large Storage           |             High | No            | LOLP            |
-| Storage + Load Shifting |         Variable | Yes           | LOLP            |
-
-The relationship between battery capacity and reliability will be examined through:
-
-$$
-C_{battery}\rightarrow P(E_t<0)
-$$
-
----
+   Compare LOLP for different battery capacities and demand-management strategies.
 
 ## Expected Outcome
 
-The project aims to determine how uncertainty in renewable generation and consumer demand propagates through the energy balance and how battery storage changes the resulting probability of supply deficits.
+The project aims to quantify the relationship between **battery capacity and grid reliability**, and determine whether battery storage and load-shifting can significantly reduce the probability of unmet electricity demand.
 
-The expected relationship is:
+## Scope
 
-$$
-\text{Increasing battery capacity}
-\quad\Rightarrow\quad
-\text{decreasing LOLP}
-$$
-
-although the magnitude of this improvement is expected to depend on the size and duration of generation deficits.
-
----
-
-## Assumptions
-
-The initial reference model will assume:
-
-* hourly time intervals;
-* wind speed follows a Weibull distribution;
-* normalized daylight solar irradiance follows a Beta distribution;
-* solar generation is approximately zero during nighttime;
-* consumer demand follows a selected probabilistic model;
-* the battery has finite capacity and charge/discharge limits;
-* battery state evolves according to its current state and system conditions;
-* renewable generation and demand may contain temporal patterns;
-* transmission constraints, voltage stability, frequency dynamics, and generator failures are outside the scope of the initial model.
-
----
-
-## Methodology
-
-The project will follow these stages:
-
-1. **Review existing models** for wind, solar irradiance, and electricity consumption.
-
-2. **Define the reference probability model** and its assumptions.
-
-3. **Model wind speed** and convert it into wind power.
-
-4. **Model solar irradiance** and convert it into solar power.
-
-5. **Select and model consumer demand** using an appropriate probability distribution.
-
-6. **Construct the battery model** using state-of-charge and Markov transitions.
-
-7. **Define the energy balance**:
-
- $$E_t=G_t+B_t-D_t$$
-
-8. **Determine the distribution of $E_t$** using simulation.
-
-9. **Calculate LOLP and deficit size** under different battery capacities.
-
-10. **Test load-shifting strategies** and compare peak demand.
-
-11. **Apply CLT and Chebyshev's Inequality** to analyse the resulting distributions.
-
-12. **Compare scenarios and evaluate the model's assumptions.**
-
----
+This project focuses on **probabilistic supply-demand reliability**. It does not attempt to model the full physical stability of a power grid, such as voltage stability, frequency dynamics, transmission constraints, or generator faults.
 
 ## Tools
 
 * Python
-* NumPy/SciPy
+* NumPy / SciPy
 * Pandas
 * Matplotlib
-* Probability & Statistical Modelling
-* Monte Carlo Simulation
-* Markov Chains
+* Statistical and probabilistic modelling
+
 
 
